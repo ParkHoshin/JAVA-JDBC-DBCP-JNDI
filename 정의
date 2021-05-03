@@ -8,5 +8,146 @@ DBCP,JNDI는 실질적으로 소스개발 시 사용하는 DB커넥션 방법론
                 DBCP는 DB커넥션을 어플리케이션 소스 내에서 제어하면서 DB풀을 가진다.
                 JNDI는 DB커넥션을 WAS단에서 제어하면서 서버에서 하나의 커넥션 풀을 가진다.
                 
-1.JDBC는 앞에서 말했듰이 
+1.JDBC는 앞에서 말했듯이 데이터베이스 커넥션 인터페이스이다.
+ 데이타베이스를 엑세스하는데는 JDBC API가 필수이다.
+ JDBC는 데이터베이스풀 방식을 사용하지않고 DB에서 정보를 가져올 때마다 매번 디비연결의 열고 닫는 방식이다.
+ 디비풀을 사용하지도 않고, 각 페이지에 데이터베이스 통신이 필요한 부분이 있으면 무조건 디비객체 생성, 커넥션 연결, 커넥션종료 등 반복한다.
+   
+   *풀방식 : 어플리케이션을 시작할 때 원하는 만큼 커넥션 객체를 만들어 놓고 pool에 넣어놓았다가 필요할때마다 갖다 쓰고 pool에 반납하는 방식.
+             다중스레드를 스레드풀로 관리하는것과 비슷한 방식이다.
+  
+ 데이터베이스 커넥션 풀을 이용하는 방식도 여러가지 패턴이 있다.
+ 그 중 DBCP와 JNDI 방식이 있다.
+  DBCP방식은 데이터베이스 커넥션 풀을 어플리케이션 소스단에 설정해놓은 방식이다.
+  JNDI는 WAS단에 데이터베이스 커넥션 객체를 미리 네이밍 해두는 방식이다.
+  WAS단에 데이터베이스 풀을 미리 네이밍 해 두면 좋은 이점.
+   1. DB설정정보를 파악하기 쉽다.
+    -소스레벨에서 DB설정정보등 DB커넥션에 필요한 정보들을 설정해놓으면 소스 개발자 외에는 DB설정정보를 찾기 어렵다.
+   2.DB커넥션풀을 효율적으로 사용할 수 있다.
+   
+   JNDI 설정.
+   1.tomcat설치폴더/conf/server.xml
+   
+   --mysql 셋팅
+    <GlobalNamingResources>
+
+      <Resource name="jdbc/EgovData"
+
+      auth="Container"
+
+      type="javax.sql.DataSource"
+
+      maxActive="100" maxIdle="30"
+
+      maxWait="10000"
+      validationQuery="SELECT 1"
+
+      validationInterval="30000"
+      username="root"
+
+      password="passwd"
+
+      driverClassName="com.mysql.jdbc.Driver"
+      url="jdbc:mysql://localhost:3306/myDB?useUnicode=true&amp;characterEncoding=utf8&amp;autoReconnect=true" />
+
+    </GlobalNamingResources>
+
+--oracle 셋팅
+    <GlobalNamingResources>
+
+      <Resource name="jdbc/EgovDataOracle"
+
+      auth="Container"
+
+      type="javax.sql.DataSource"
+
+      maxActive="100"
+
+      maxIdle="30"
+
+      maxWait="10000"
+      validationQuery="SELECT 1 FROM DUAL"
+
+      validationInterval="30000"
+      username="scott"
+
+      password="tiger"
+
+      driverClassName="oracle.jdbc.driver.OracleDriver"
+      url="jdbc:oracle:thin:@localhost:1521:ORA11"/>
+
+    </GlobalNamingResources>
+    
+    2. TOMCAT 설치폴더/conf/context.xml(Catalina 폴더 안에쪽에 context를 빼놓았을 경우 그쪽 파일에 수정)
+
+    <Context>
+      <ResourceLink name="jdbc/MySQLDS" global="jdbc/MySQLDS"  type="javax.sql.DataSource" />
+    </Context>
+    
+    3. 사용하려는 프로젝트의 WEB-INF 밑에 web.xml에 아래와 같이 추가한다. res-ref-name의 이름을 맞춰준다.
+      
+      <resource-ref>
+        <description></description>
+        <res-ref-name>jdbc/MySQLDS</res-ref-name>
+        <res-type>javax.sql.DataSource</res-type>
+        <res-auth>Container</res-auth>
+      </resource-ref>
+    
+    4. 스프링을 사용하는 경우, datasource를 만들때 다음과 같이 만든다. (MySQL 기준)
+      -xml
+        <util:properties id="properties" location="classpath:application.properties" />
+        <bean id="MySQLDS" class="org.springframework.jndi.JndiObjectFactoryBean">
+          <property name="jndiName" value="#{properties['jndi.name']}" />
+        </bean>
+        
+      -properties
+        jndi.name=java:/comp/env/jdbc/MySQLDS
+        
+    5. 일반 java/jsp 코딩에 사용할 경우    
+      DataSource _pool;
+
+public void jspInit() {
+
+try {
+   Context env = (Context) new InitialContext().lookup("java:comp/env");
+ 
+
+   _pool = (DataSource) env.lookup("jdbc/MySQLDS");
+
+
+  } catch(Exception e) {
+   System.out.println ("DB POOL Initializing Exception : "+e);
+  }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+   
+ 
+ 
+
+
+
+ 
+
 
